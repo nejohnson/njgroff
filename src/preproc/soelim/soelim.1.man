@@ -199,19 +199,16 @@ requests.
 .PP
 Immediately following the
 .RB \[lq] so \[rq]
-can be a range specifier, of the form
-.RB \[lq] [S-E] \[rq]
-where
-.RB \[lq] S \[rq]
+can be a range specifier of the form
+.RB \[lq] [S-E] \[rq],
+where S
 is the start line number, and
-.RB \[lq] E \[rq]
-is the end line number, or of the form
+E is the end line number, or of the form
 .RB \[lq] [S+R] \[rq]
 where
-.RB \[lq] S [\rq]
-is the same as before, but
-.RB \[lq] R \[rq]
-is the range length.
+S is the start line number and R is the relative number of lines
+in addition to the start line.
+.
 The valid combinations of start and end or range specifiers
 are:
 .
@@ -239,6 +236,9 @@ Include R lines starting from the beginning of the file.
 .TP
 .B [S+R]
 Include R lines starting from line S.
+.TP
+.B [+]
+Include just the first and second lines (equivalent to [1-2]). 
 .
 .
 .PP
