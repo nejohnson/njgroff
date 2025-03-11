@@ -205,8 +205,14 @@ where
 .RB \[lq] S \[rq]
 is the start line number, and
 .RB \[lq] E \[rq]
-is the end line number.
-The valid combinations of start and end specifiers
+is the end line number, or of the form
+.RB \[lq] [S+R] \[rq]
+where
+.RB \[lq] S [\rq]
+is the same as before, but
+.RB \[lq] R \[rq]
+is the range length.
+The valid combinations of start and end or range specifiers
 are:
 .
 .TP
@@ -224,6 +230,15 @@ Only include lines from S to E inclusive.
 .TP
 .B [-]
 Include all lines (original behaviour, included for completeness).
+.TP
+.B [S+]
+Only include lines from S to S+1.
+.TP
+.B [+R]
+Include R lines starting from the beginning of the file.
+.TP
+.B [S+R]
+Include R lines starting from line S.
 .
 .
 .PP

@@ -149,6 +149,7 @@ void get_line_range(FILE *fp, int *start_lineno, int *end_lineno)
   char c = getc(fp);
   enum { START, END, SKIPPING } state = START;
   int ok = 0;
+  int is_relative = 0;
   for (; c != ']' && c != EOF && c != '\n'; c = getc(fp)) {
     switch (state) {
 case START:
@@ -156,6 +157,10 @@ case START:
         s = (s * 10) + c - '0';
       else if (c == '-')
         state = END;
+      else if (c == '+') {
+        state = END;
+	is_relative = 1;
+      }
       else
         state = SKIPPING;
       break;
@@ -177,7 +182,10 @@ default:
   }
   else if (state == END) {
     if (s == 0) s = START_LINENO;
-    if (e == 0) e = END_LINENO;
+    if (is_relative) {
+      if (e == 0) e = 1;
+      e += s;
+    } else if (e == 0) e = END_LINENO;
     ok = 1;
   }
   if (state == SKIPPING || s > e) {
