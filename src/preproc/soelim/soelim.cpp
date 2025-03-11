@@ -45,8 +45,12 @@ bool want_tex_output = false;
 
 extern "C" const char *Version_string;
 
-int do_file(const char *);
+int do_file(const char *, int, int);
 
+enum {
+  START_LINENO = 1,
+  END_LINENO   = INT_MAX
+};
 
 void usage(FILE *stream)
 {
@@ -63,7 +67,8 @@ void usage(FILE *stream)
 "requests as well to record the name and line number of each\n"
 "input-file and included-file.  Use the -t option to produce TeX\n"
 "comments instead of roff requests.  Use the -r option to write\n"
-"neither.  See the soelim(1) manual page.\n",
+"neither.  See the soelim(1) manual page.\n"
+"(neilj version)\n",
 	  stream);
 }
 
@@ -115,10 +120,10 @@ int main(int argc, char **argv)
     }
   int nbad = 0;
   if (optind >= argc)
-    nbad += !do_file("-");
+    nbad += !do_file("-", START_LINENO, END_LINENO);
   else
     for (int i = optind; i < argc; i++)
-      nbad += !do_file(argv[i]);
+      nbad += !do_file(argv[i], START_LINENO, END_LINENO);
   if (ferror(stdout))
     fatal("error status on standard output stream");
   if (fflush(stdout) < 0)
@@ -138,7 +143,53 @@ void set_location()
   }
 }
 
-void do_so(const char *line)
+void get_line_range(FILE *fp, int *start_lineno, int *end_lineno)
+{
+  int s = 0, e = 0;
+  char c = getc(fp);
+  enum { START, END, SKIPPING } state = START;
+  int ok = 0;
+  for (; c != ']' && c != EOF && c != '\n'; c = getc(fp)) {
+    switch (state) {
+case START:
+      if (isdigit(c))
+        s = (s * 10) + c - '0';
+      else if (c == '-')
+        state = END;
+      else
+        state = SKIPPING;
+      break;
+case END:
+      if (isdigit(c))
+        e = (e * 10) + c - '0';
+      else
+        state = SKIPPING;
+      break;
+case SKIPPING:
+      break;
+default:
+      assert(0 == "unhandled state in line range parser");
+    }
+  }
+  if (state == START && s > 0 && e == 0) {
+    e = s;
+    ok = 1;
+  }
+  else if (state == END) {
+    if (s == 0) s = START_LINENO;
+    if (e == 0) e = END_LINENO;
+    ok = 1;
+  }
+  if (state == SKIPPING || s > e) {
+    error("Bad line range spec, skipping...");
+    s = START_LINENO;
+    e = END_LINENO;
+  }
+  *start_lineno = s;
+  *end_lineno = e;
+}
+
+void do_so(const char *line, int start_lineno, int end_lineno)
 {
   const char *p = line;
   while (*p == ' ')
@@ -170,7 +221,7 @@ void do_so(const char *line)
     const char *fn = current_filename;
     int ln = current_lineno;
     current_lineno--;
-    if (do_file(filename.contents())) {
+    if (do_file(filename.contents(), start_lineno, end_lineno)) {
       current_filename = fn;
       current_lineno = ln;
       set_location();
@@ -182,7 +233,7 @@ void do_so(const char *line)
   fputs(line, stdout);
 }
 
-int do_file(const char *filename)
+int do_file(const char *filename, int start_lineno, int end_lineno)
 {
   char *file_name_in_path = 0;
   FILE *fp = include_search_path.open_file_cautious(filename,
@@ -201,11 +252,20 @@ int do_file(const char *filename)
   normalize_for_lf(whole_filename);
   current_filename = whole_filename.contents();
   current_lineno = 1;
+  while (current_lineno < start_lineno) {
+    int c = getc(fp);
+    if (c == EOF)
+      break;
+    if (c == '\n')
+      current_lineno++;
+  }
   set_location();
   enum { START, MIDDLE, HAD_DOT, HAD_s, HAD_so, HAD_l, HAD_lf } state = START;
   for (;;) {
     int c = getc(fp);
     if (c == EOF)
+      break;
+    if (current_lineno > end_lineno)
       break;
     switch (state) {
     case START:
@@ -260,14 +320,20 @@ int do_file(const char *filename)
       }
       break;
     case HAD_so:
-      if (c == ' ' || c == '\n' || want_att_compat) {
+      if (c == ' ' || c == '\n' || c == '[' || want_att_compat) {
 	string line;
+	int s = START_LINENO;
+	int e = END_LINENO;
+	if (c == '[') {
+	  get_line_range(fp, &s, &e);
+	  c = getc(fp);
+	}
 	for (; c != EOF && c != '\n'; c = getc(fp))
 	  line += c;
 	current_lineno++;
 	line += '\n';
 	line += '\0';
-	do_so(line.contents());
+	do_so(line.contents(), s, e);
 	state = START;
       }
       else {

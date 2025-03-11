@@ -1,0 +1,30 @@
+>> Original function
+.so soelim-inc.test
+
+>> First line only
+.so[1] soelim-inc.test
+
+>> Entire file
+.so[-] soelim-inc.test
+.so[1-] soelim-inc.test
+
+>> Start to mid [1-2]
+.so[-2] soelim-inc.test
+.so[1-2] soelim-inc.test
+
+>> Mid to end [3-]
+.so[3-] soelim-inc.test
+
+>> Mid to mid [2-3]
+.so[2-3] soelim-inc.test
+
+>> Single line (lines 1,2,4)
+.so[1] soelim-inc.test
+.so[2] soelim-inc.test
+.so[4] soelim-inc.test
+
+>> Bad range [3-1]
+.so[3-1] soelim-inc.test
+
+>> END <<
+

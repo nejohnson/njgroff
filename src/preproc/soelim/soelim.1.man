@@ -197,6 +197,36 @@ requests.
 .
 .
 .PP
+Immediately following the
+.RB \[lq] so \[rq]
+can be a range specifier, of the form
+.RB \[lq] [S-E] \[rq]
+where
+.RB \[lq] S \[rq]
+is the start line number, and
+.RB \[lq] E \[rq]
+is the end line number.
+The valid combinations of start and end specifiers
+are:
+.
+.TP
+.B [S]
+Include only line S.
+.TP
+.B [S-]
+Include lines from S to the end of the file.
+.TP
+.B [-E]
+Include lines from the start of the file down to and including line E.
+.TP
+.B [S-E]
+Only include lines from S to E inclusive.
+.TP
+.B [-]
+Include all lines (original behaviour, included for completeness).
+.
+.
+.PP
 There must also be at least one space between
 .RB \[lq] so \[rq]
 and its
