@@ -1,0 +1,10 @@
+#!/bin/bash
+
+INSTALLDIR=~/Apps/bin
+
+pushd ../groff/src/preproc/soelim/
+cp ../../../../njgroff/src/preproc/soelim/* .
+cd ../../../build
+make
+cp soelim $INSTALLDIR
+popd
