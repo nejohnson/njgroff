@@ -238,7 +238,7 @@ Include R lines starting from the beginning of the file.
 Include R lines starting from line S.
 .TP
 .B [+]
-Include just the first and second lines (equivalent to [1-2]). 
+Include just the first and second lines (equivalent to [1-2]).
 .
 .
 .PP

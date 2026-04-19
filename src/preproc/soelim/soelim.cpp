@@ -67,8 +67,7 @@ void usage(FILE *stream)
 "requests as well to record the name and line number of each\n"
 "input-file and included-file.  Use the -t option to produce TeX\n"
 "comments instead of roff requests.  Use the -r option to write\n"
-"neither.  See the soelim(1) manual page.\n"
-"(neilj version)\n",
+"neither.  See the soelim(1) manual page.\n",
 	  stream);
 }
 
@@ -148,7 +147,6 @@ void get_line_range(FILE *fp, int *start_lineno, int *end_lineno)
   int s = 0, e = 0;
   char c = getc(fp);
   enum { START, END, SKIPPING } state = START;
-  int ok = 0;
   int is_relative = 0;
   for (; c != ']' && c != EOF && c != '\n'; c = getc(fp)) {
     switch (state) {
@@ -159,7 +157,7 @@ case START:
         state = END;
       else if (c == '+') {
         state = END;
-	is_relative = 1;
+        is_relative = 1;
       }
       else
         state = SKIPPING;
@@ -178,23 +176,25 @@ default:
   }
   if (state == START && s > 0 && e == 0) {
     e = s;
-    ok = 1;
-  }
-  else if (state == END) {
-    if (s == 0) s = START_LINENO;
+  } else if (state == END) {
+    if (s == 0)
+      s = START_LINENO;
     if (is_relative) {
-      if (e == 0) e = 1;
+      if (e == 0)
+        e = 1;
       e += s;
-    } else if (e == 0) e = END_LINENO;
-    ok = 1;
+    } else if (e == 0)
+      e = END_LINENO;
   }
   if (state == SKIPPING || s > e) {
     error("Bad line range spec, skipping...");
     s = START_LINENO;
     e = END_LINENO;
   }
-  *start_lineno = s;
-  *end_lineno = e;
+  if (start_lineno)
+    *start_lineno = s;
+  if (end_lineno)
+    *end_lineno = e;
 }
 
 void do_so(const char *line, int start_lineno, int end_lineno)
