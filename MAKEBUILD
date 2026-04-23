@@ -3,7 +3,7 @@
 INSTALLDIR=~/Apps/bin
 
 pushd ../groff/src/preproc/soelim/
-cp ../../../../njgroff/src/preproc/soelim/* .
+cp -r ../../../../njgroff/src/preproc/soelim/* .
 cd ../../../build
 make
 cp soelim $INSTALLDIR

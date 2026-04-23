@@ -142,59 +142,88 @@ void set_location()
   }
 }
 
-void get_line_range(FILE *fp, int *start_lineno, int *end_lineno)
+// Parse a non-negative decimal integer from the stream, advancing c past
+// the digits.  Returns -1 if no digits are present.  Sets bad on overflow.
+static int read_number(int &c, FILE *fp, bool &bad)
 {
-  int s = 0, e = 0;
-  char c = getc(fp);
-  enum { START, END, SKIPPING } state = START;
-  int is_relative = 0;
-  for (; c != ']' && c != EOF && c != '\n'; c = getc(fp)) {
-    switch (state) {
-case START:
-      if (isdigit(c))
-        s = (s * 10) + c - '0';
-      else if (c == '-')
-        state = END;
-      else if (c == '+') {
-        state = END;
-        is_relative = 1;
+  if (!isdigit(c))
+    return -1;
+  int n = 0;
+  while (isdigit(c)) {
+    if (n > INT_MAX / 10 || (n == INT_MAX / 10 && (c - '0') > INT_MAX % 10)) {
+      bad = true;
+      while (isdigit(c = getc(fp)))
+        ;
+      return -1;
+    }
+    n = n * 10 + (c - '0');
+    c = getc(fp);
+  }
+  return n;
+}
+
+int get_line_range(FILE *fp, int *start_lineno, int *end_lineno)
+{
+  int c = getc(fp);
+  bool bad = false;
+
+  // Parse optional start number; -1 means not specified.
+  int s = read_number(c, fp, bad);
+
+  bool has_delim = (c == '-' || c == '+');
+  bool is_relative = (c == '+');
+
+  // Digits followed by something other than a delimiter or terminator is invalid.
+  if (!bad && s >= 0 && !has_delim && c != ']' && c != EOF && c != '\n')
+    bad = true;
+
+  if (has_delim)
+    c = getc(fp);
+
+  // Parse optional end/relative number; -1 means not specified, -2 means no
+  // delimiter was seen (so e is not applicable).
+  int e = has_delim ? read_number(c, fp, bad) : -2;
+
+  // Any non-terminator character remaining after e is invalid.
+  if (!bad && has_delim && c != ']' && c != EOF && c != '\n')
+    bad = true;
+
+  // Drain to the terminator so the caller receives the correct character.
+  while (c != ']' && c != EOF && c != '\n')
+    c = getc(fp);
+
+  // Resolve defaults and validate.
+  if (!bad) {
+    if (!has_delim) {
+      // [S] form: a single positive line number.
+      if (s > 0)  e = s;
+      else        bad = true;
+    } else {
+      // [S-E], [S+R], [-E], [S-], [+R], [-], [+], etc.
+      if      (s == -1) s = START_LINENO;  // unspecified start -> beginning
+      else if (s == 0)  bad = true;        // explicit 0 start is invalid
+
+      if (!bad) {
+        if (is_relative)
+          e = (e < 0) ? s + 1 : s + e;    // [S+] -> S+1; [S+R] -> S+R
+        else if (e == -1) e = END_LINENO;  // [S-] -> end of file
+        else if (e == 0)  bad = true;      // explicit 0 end is invalid
+
+        if (!bad && s > e) bad = true;
       }
-      else
-        state = SKIPPING;
-      break;
-case END:
-      if (isdigit(c))
-        e = (e * 10) + c - '0';
-      else
-        state = SKIPPING;
-      break;
-case SKIPPING:
-      break;
-default:
-      assert(0 == "unhandled state in line range parser");
     }
   }
-  if (state == START && s > 0 && e == 0) {
-    e = s;
-  } else if (state == END) {
-    if (s == 0)
-      s = START_LINENO;
-    if (is_relative) {
-      if (e == 0)
-        e = 1;
-      e += s;
-    } else if (e == 0)
-      e = END_LINENO;
-  }
-  if (state == SKIPPING || s > e) {
-    error("Bad line range spec, skipping...");
+
+  if (bad) {
+    error("bad line range spec, skipping...");
     s = START_LINENO;
     e = END_LINENO;
   }
-  if (start_lineno)
-    *start_lineno = s;
-  if (end_lineno)
-    *end_lineno = e;
+
+  assert(start_lineno != NULL && end_lineno != NULL);
+  *start_lineno = s;
+  *end_lineno = e;
+  return c;
 }
 
 void do_so(const char *line, int start_lineno, int end_lineno)
@@ -333,8 +362,11 @@ int do_file(const char *filename, int start_lineno, int end_lineno)
 	int s = START_LINENO;
 	int e = END_LINENO;
 	if (c == '[') {
-	  get_line_range(fp, &s, &e);
-	  c = getc(fp);
+	  c = get_line_range(fp, &s, &e);
+	  if (c == ']')
+	    c = getc(fp);
+	  else
+	    error("missing closing ']' in line range spec, skipping...");
 	}
 	for (; c != EOF && c != '\n'; c = getc(fp))
 	  line += c;
